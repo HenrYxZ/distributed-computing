@@ -7,7 +7,7 @@ algorithm.
 @author Hernaldo Henriquez September 2014
 '''
 
-def bucket_sort(data,comm):
+def bucket_sort(data, comm):
 	rank = comm.Get_rank()
 	# n is the number of processes
 	n = comm.Get_size()
