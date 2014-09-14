@@ -17,6 +17,9 @@ class Hw1:
 		rank = comm.Get_rank()
 		# n is the number of processes
 		n = comm.Get_size()
+
+		#### 1. Find min and max and bucket lenght
+
 		if (rank == 0):
 			# find the min (a) and the max (b) number in the array
 			max_num = data[0]
@@ -35,6 +38,9 @@ class Hw1:
 			buckets_info = None
 		buckets_info = comm.bcast(buckets_info, root = 0)
 
+
+		#### 2. Each bucket finds in which buckets the assigned elemnts must go
+
 		# Now we can scatter the array and each process might decide the
 		# corresponding bucket for each number that has
 		assigned_numbers = comm.scatter(data, root = 0)
@@ -45,29 +51,36 @@ class Hw1:
 		bucket_len = buckets_info[1]
 
 		for num in assigned_numbers:
-			assignation.append((num, ((num-min_num)//bucket_len)))
+			assignation.append((num, ((num - min_num) // bucket_len)))
 
-		data = comm.gather(assignation, root=0)
+		data = comm.gather(assignation, root = 0)
 
+		#### 3. First node sends the corresponding elements for each bucket
+		
 		if (rank == 0):
 			data = np.concatenate(data)
-			temp = [[] for i in range(n)] 
+			temp = [[] for i in range(n)]
 			for number, bucket_id in data:
-				# print (str(number) + " , " + str(bucket_id))
 				if (bucket_id == n):
 					bucket_id = n-1
 				temp[bucket_id].append(number)
-			for i in range(n-1):
-				comm.send(temp[i+1], dest=(i+1), tag=1)
+			for i in range(n - 1):
+				comm.send(temp[i + 1], dest = (i + 1), tag = 1)
 			data = temp[0]
 		else:
 			data = []
-			data = comm.recv(source=0, tag=1)
+			data = comm.recv(source = 0, tag = 1)
 
+		#### 4. Each bucket sorts its elements
+		
 		data.sort()
-		data = comm.gather(data, root=0)
+
+		#### 5. First node collects the sorted elements, knowing that the next
+		####    bucket always has greater numbers
+		
+		data = comm.gather(data, root = 0)
 		if (comm.rank == 0):
-			return data
+			return np.concatenate(data).tolist()
 
 	def sample_sort(self,data,n_samples,comm):
 		#n_samples es el número de muestras que se tomaran
@@ -78,6 +91,7 @@ class Hw1:
 		n = comm.Get_size()
 
 		#### 1. Choose a random sample from the data array
+		
 		if (rank == 0):
 			indices = [i for i in range(len(data))]
 			random_indices = []
@@ -91,18 +105,72 @@ class Hw1:
 			sample = None
 		sample = comm.bcast(sample, root = 0)
 
-		#### 2. Parallely sort the sample using merge sort
+		#### 2. Distributively sort the sample using merge sort
+		
 		sorted_sample = self.bucket_sort(sample, comm)
+		
+
+		#### 3. Choose n -1 bucket separators
+		
 		if (rank == 0):
-			sorted_sample = np.concatenate(sorted_sample).tolist()
-			print (sorted_sample)
 			for i in range(n_samples - n + 1):
 				size = len(sorted_sample)
 				del sorted_sample[random.randrange(size)]
-			print (sorted_sample)
-		#### 3. Choose n -1 bucket separators
-		# for i in range(n_samples - n + 1):
-		return
+			print ('separators ' + str(sorted_sample))
+		sorted_sample = comm.bcast(sorted_sample, root = 0)
+
+		#### 4. Distribute data in buckets
+		
+		if (rank == 0):
+			data_partition = util.partition(data, n)
+		else:
+			data_partition = None
+		data_part = comm.scatter(data_partition, root = 0)
+		print ('data parts ' + str(data_part))
+		
+		###### 4.1 each bucket assigns the corresponding bucket of a group of
+		######     elements
+		
+		assignation = []
+		## TODO BORRAR ELEMENTOS DEL DATAPART
+		for element in data_part:
+			if (element > sorted_sample[-1]):
+				assignation.append((element, n - 1))
+			else:
+				for i in range((len(sorted_sample))):
+					separator = sorted_sample[i]
+					if (element <= separator):
+						assignation.append((element, i))
+						break
+		print ('assignation rank:' + str(rank) + ' = ' + str(assignation))
+		
+		###### 4.2 First node collects the assignations and sends elements to
+		######	   their corresponding bucket
+		
+		assignations = comm.gather(assignation, root = 0)
+		if (rank == 0):
+			assignations = np.concatenate(assignations).tolist()
+			temp = [[] for i in range(n)]
+			for element, bucket_id in assignations:
+				temp[bucket_id].append(element)
+			for bucket in temp:
+				for i in range(n - 1):
+					comm.send(temp[i + 1], dest = (i + 1), tag = 2)
+			data = temp[0]
+
+		else:
+			data = []
+			data = comm.recv(source = 0, tag = 2)
+
+		print ('bucket ' + str(rank) + ' -> ' + str(data))
+
+		#### 5. Sort in each bucket and collect it
+
+		data.sort()
+		data = comm.gather(data, root = 0)
+		if (rank == 0):
+			print ('sorted data: ' + str(np.concatenate(data)))
+			return np.concatenate(data).tolist()
 
 	def sparse_graph_coloring(self, vector, comm):
 		#vector es el vector de adyacencia del nodo asociado a comm.Get_rank()
