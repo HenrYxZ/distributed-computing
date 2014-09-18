@@ -3,6 +3,7 @@ import numpy as np
 import math
 import util
 import random
+import collections
 
 class Hw1:
 
@@ -174,6 +175,35 @@ class Hw1:
 
 	def sparse_graph_coloring(self, vector, comm):
 		#vector es el vector de adyacencia del nodo asociado a comm.Get_rank()
+
+		#### 1. Find the node/process with the max degree
+
+		rank = comm.Get_rank()
+		n = comm.Get_size()
+		degree_id = (sum(vector), rank)
+		degrees = comm.gather(degree_id, root = 0)
+		if (rank == 0):
+			max_degree = 0
+			max_id = 0
+			for degree_id in degrees:
+				if degree_id[0] > max_degree:
+					max_degree = degree_id[0]
+					max_id = degree_id[1]
+			print ('max degree: ' + str(max_degree))
+			print ('max id: ' + str(max_id))
+
+		#### 2. Start coloring from the node with max degree
+
+			colors = [i for i in range(max_degree + 1)]
+		else:
+			colors = None
+		colors = comm.bcast(colors, root = 0)
+		ColoredNode = collections.namedtuple('ColoredNode', ['id', 'col'])
+
+		def bfs_coloring(node, colored_father):
+			# colors.pop(colored_father.col)
+			pass
+
 		return
 
 	def shortest_paths(self, vector, comm):
