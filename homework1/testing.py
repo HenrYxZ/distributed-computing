@@ -1,8 +1,9 @@
-from mpi4py import MPI
-from hw1 import Hw1
+import util
 import numpy as np
 
-comm = MPI.COMM_WORLD
+# vectors = np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]])
+node = 7
+
 vectors = np.zeros((10,10), dtype = np.int)
 # edges
 vectors[0][1] = 1
@@ -30,6 +31,4 @@ vectors[7][4] = 1
 vectors[7][5] = 1
 vectors[8][7] = 1
 
-myHomework = Hw1()
-rank = comm.Get_rank()
-myHomework.sparse_graph_coloring(vectors[rank], comm)
+lvls = util.bfs_levels(node, vectors)

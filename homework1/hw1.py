@@ -197,16 +197,107 @@ class Hw1:
 			colors = [i for i in range(max_degree + 1)]
 		else:
 			colors = None
+			max_id = None
 		colors = comm.bcast(colors, root = 0)
-		ColoredNode = collections.namedtuple('ColoredNode', ['id', 'col'])
+		max_id = comm.bcast(max_id, root = 0)
+		vectors = comm.gather(vector, root = max_id)
+		# ColoredNode = collections.namedtuple('ColoredNode', ['id', 'col'])
+		my_col = None
 
-		def bfs_coloring(node, colored_father):
-			# colors.pop(colored_father.col)
-			pass
+		def bfs_inlvl_coloring(node, lvl):
+			
+			# If this is the smallest node in the level
+			# tag 1 is for prev -> next
+			# tag 2 is for OK
+			# tag 3 is for request color change
+			# tag 4 is for reply color change
+			counter = 0
+			neighbors = []
+			for i in range(len(vector)):
+				if (vector[i] == 1):
+					if (coloration[i] != None and coloration[i] in colors):
+						s = 'Node {0}: color {1}, rank {2}'
+						sf = s.format(rank, coloration[i], i)
+						print (sf)
+						colors.remove(coloration[i])
+					if (i in level):
+						neighbors.append(i)
+			print ('colors n{0}: {1}'.format(rank, colors))
+			print ('neighbors n{0}: {1}'.format(rank, neighbors))
+			if (not neighbors):
+				return colors[0]
+			# If this is the first node in the level, 
+			# this will be the coordinator
+			if (rank < neighbors[0]):
+				my_aux_col = colors[0]
+				print ('n{0}->n{1}: {2}'.format(rank, neighbors[0], [my_aux_col]))
+				comm.send([my_aux_col], dest = neighbors[0], tag = 1)
+				# Receives changing color petitions
+				for pos in range(2, len(neighbors)):
+					node = neighbors[pos]
+					answer = comm.recv(source = node, tag = 2)
+					print ('n{0}<-n{1}: Answer {2}'.format(rank, node, answer))
+					if (answer != 'OK'):
+						print ('n{0}->n{1}: Reply {2}'.format(rank, node, my_aux_col))
+						comm.send(my_aux_col, dest = node, tag = 4)
+						my_aux_col = answer
+						comm.recv(source = node, tag = 2)
 
-		return
+			else:
+				previous = 0
+				if (rank > neighbors[len(neighbors) - 1]):
+					previous = neighbors[len(neighbors) - 1]
+					next = False
+				else:
+					for i in range(len(neighbors)):
+						if (neighbors[i] > rank):
+							previous = neighbors[i-1]
+							next = neighbors[i]
+							break
+				first = neighbors[0]
+				used_cols = comm.recv(source = previous, tag = 1)
+				print ('Node {0}: used_cols {1}'.format(rank, used_cols))
+				for col in used_cols:
+					colors.remove(col)
+				if not colors:
+					comm.send(colored_father.col, dest = first, tag = 3)
+					my_aux_col = comm.recv(source = first, tag = 4)
+					comm.send('OK', dest = first, tag = 2)
+				else:
+					my_aux_col = colors[0]
+					if (next):
+						used_cols.append(my_aux_col)
+						print ('n{0}->n{1}: {2}'.format(rank, next, used_cols))
+						comm.send(used_cols + my_aux_col, dest = next, tag = 1)
+						comm.send('OK', dest = first, tag = 2)
+
+			return my_aux_col
+
+		# Use bfs_coloring starting from the highest degree node and spreading
+		# to the neighbors
+		# tag 100 to say GO, tag 200 to informate assigned color
+		if (rank == max_id):
+			coloration = [None for i in range (n)]
+			coloration[max_id] = 0
+			my_col = 0
+			breadth_levels = util.bfs_levels(rank, vectors)
+			for level in breadth_levels:
+				for node in level:
+					comm.send((coloration, level), dest = node, tag = 100)
+				for node in level:
+					coloration[node] = comm.recv(source = node, tag = 200)
+			print ('Final coloration ' + str(coloration))
+			return coloration
+
+		else:
+			# waits until the coloration of all previous levels is sent to him
+			coloration, level = comm.recv(source = max_id, tag = 100)
+			print ('Node {0} started with {1}'.format(rank, coloration))
+			my_col = bfs_inlvl_coloring(rank, level)
+			comm.send(my_col, dest = max_id, tag = 200)
+			print ('Node {0} decided its color is {1}'.format(rank, my_col))
 
 	def shortest_paths(self, vector, comm):
-		#vector es el vector de distancia a todos los demas nodos.La distancia al
-		#mismo nodo es 0 y a los que no está conectado tambien
+		#vector es el vector de distancia a todos los demas nodos.La distancia
+		#al mismo nodo es 0 y a los que no está conectado tambien
 		return
