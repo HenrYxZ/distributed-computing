@@ -205,7 +205,15 @@ class Hw1:
 		my_col = None
 
 		def bfs_inlvl_coloring(node, lvl):
-			
+			'''
+			In this function the nodes from a same level agree on which color
+			each node would be, coordinating with the lowest, the previous and
+			the next node.
+			Starting from the lowest, a node choose the first color that hasn't
+			been used and then tells to the next the colors that have been used.
+			If a node doesn't have any color to choose it changes color with the
+			lowest.
+			'''
 			# If this is the smallest node in the level
 			# tag 1 is for prev -> next
 			# tag 2 is for OK
