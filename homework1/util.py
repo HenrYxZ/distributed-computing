@@ -13,7 +13,7 @@ def neighbors(vector):
 	return [i for i in range(len(vector)) if vector[i] == 1]
 
 def connected_and_not_checked(vector, checked, node):
-	condition = ((vector[node] == 1) and (not checked[node]))
+	condition = ((vector[node] != 0) and (not checked[node]))
 	if condition:
 		checked[node] = True
 	return condition
