@@ -21,12 +21,12 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 		this.mServer = chatServer;
 		enterToChat();
 	}
-	
+
 	public void sendNewUser() throws RemoteException {
 		Scanner sc = new Scanner(System.in);
 		boolean validName = false;
 		String name = "default";
-		while(!validName) {
+		while (!validName) {
 			System.out.println("Enter new name: ");
 			name = sc.nextLine();
 			validName = this.mServer.register(this, name);
@@ -38,32 +38,33 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 		sc.close();
 		this.mServer.register(this, name, pass);
 	}
-	
+
 	public void authenticateNamePass() throws RemoteException {
 		Scanner sc = new Scanner(System.in);
 		System.out.println("Enter your name: ");
-		String name =  sc.nextLine();
+		String name = sc.nextLine();
 		System.out.println("Enter your password: ");
 		String pass = sc.nextLine();
 		sc.close();
-		this.mServer.authenticate(this, name, pass);	
+		this.mServer.authenticate(this, name, pass);
 	}
-	
+
 	public void enterToChat() {
 		Scanner sc = new Scanner(System.in);
-		String menu = "Hello! Choose one option:\n"
-					+ "[1] Create new user."
-					+ "[2] Sign in with existing user"
-					+ "[0] Exit";
+		String menu = "Hello! Choose one option:\n" + "[1] Create new user."
+				+ "[2] Sign in with existing user" + "[0] Exit";
 		System.out.println(menu);
 		try {
 			switch (sc.nextInt()) {
-				case 1: sendNewUser();
-						break;
-				case 2: authenticateNamePass();
-						break;
-				default: break;
-				
+			case 1:
+				sendNewUser();
+				break;
+			case 2:
+				authenticateNamePass();
+				break;
+			default:
+				break;
+
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -73,7 +74,7 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 
 	@Override
 	public void retrieveAuthentication(boolean answer) {
-		if(answer == true) {
+		if (answer == true) {
 			System.out.println("Welcome back " + this.mName + "!");
 			run();
 		} else {
@@ -92,13 +93,28 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 			enterToChat();
 		}
 	}
-	
+
 	public void run() {
+		Scanner sc;
 		while (true) {
-			Scanner sc = new Scanner(System.in);
+			sc = new Scanner(System.in);
 			System.out.println("Running");
-			System.out.println("Enter 'exit' to go back");
+			String menu = "Enter: " + "[0] to go back"
+					+ "[1] to add a new contact" + "[2] to remove a contact"
+					+ "[3] to list contacts" + "[4] to create a conversation";
+			switch (sc.nextInt()) {
+			case 0:
+				sc.close();
+				return;
+			case 1:
+				//TODO Menu options
+			}
+			System.out.println(menu);
+			if (sc.nextLine().equals("exit"))
+				break;
+
 		}
+		sc.close();
 	}
 
 }

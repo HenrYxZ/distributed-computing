@@ -1,6 +1,5 @@
 package hjhenriq.chat.client;
 
-import hjhenriq.chat.server.ChatServer;
 import hjhenriq.chat.server.ChatServerIF;
 
 import java.net.MalformedURLException;
