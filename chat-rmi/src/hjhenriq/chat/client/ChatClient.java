@@ -13,60 +13,60 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 	 * 
 	 */
 	private static final long serialVersionUID = -8214387253929191454L;
-	private ChatServerIF server;
+	private ChatServerIF mServer;
+	private String mName;
 
-	public ChatClient(ChatServerIF chatServer) throws RemoteException{
-		this.server = chatServer;
+	protected ChatClient(ChatServerIF chatServer) throws RemoteException {
+		super();
+		this.mServer = chatServer;
+		enterToChat();
 	}
 	
-	public void sendNewUser() {
+	public void sendNewUser() throws RemoteException {
 		Scanner sc = new Scanner(System.in);
 		boolean validName = false;
 		String name = "default";
 		while(!validName) {
 			System.out.println("Enter new name: ");
 			name = sc.nextLine();
-			validName = this.server.register(this, name);
+			validName = this.mServer.register(this, name);
 			if (!validName)
 				System.out.println("Name already used.");
 		}
 		System.out.println("Enter new password: ");
 		String pass = sc.nextLine();
 		sc.close();
-		this.server.register(this, name, pass);
+		this.mServer.register(this, name, pass);
 	}
 	
-	public void authenticateNamePass() {
+	public void authenticateNamePass() throws RemoteException {
 		Scanner sc = new Scanner(System.in);
 		System.out.println("Enter your name: ");
 		String name =  sc.nextLine();
 		System.out.println("Enter your password: ");
 		String pass = sc.nextLine();
 		sc.close();
-		this.server.authenticate(this, name, pass);	
+		this.mServer.authenticate(this, name, pass);	
 	}
 	
 	public void enterToChat() {
 		Scanner sc = new Scanner(System.in);
-		while(true) {
-			String menu = "Hello! Choose one option:\n"
-						+ "[1] Create new user."
-						+ "[2] Sign in with existing user"
-						+ "[0] Exit";
-			System.out.println(menu);
-			try {
-				switch (System.in.read()) {
-					case 1: sendNewUser();
-							break;
-					case 2: authenticateNamePass();
-							break;
-					default: break;
-					
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
-				break;
+		String menu = "Hello! Choose one option:\n"
+					+ "[1] Create new user."
+					+ "[2] Sign in with existing user"
+					+ "[0] Exit";
+		System.out.println(menu);
+		try {
+			switch (sc.nextInt()) {
+				case 1: sendNewUser();
+						break;
+				case 2: authenticateNamePass();
+						break;
+				default: break;
+				
 			}
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 		sc.close();
 	}
@@ -74,20 +74,31 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 	@Override
 	public void retrieveAuthentication(boolean answer) {
 		if(answer == true) {
+			System.out.println("Welcome back " + this.mName + "!");
 			run();
 		} else {
 			System.out.println("Wrong user or password, please try again.");
+			enterToChat();
 		}
 	}
 
 	@Override
 	public void retrieveRegistration(boolean answer) {
-		// TODO Auto-generated method stub
-		
+		if (answer == true) {
+			System.out.println("Successfully registered!");
+			run();
+		} else {
+			System.out.println("Problems in registration. Please try again.");
+			enterToChat();
+		}
 	}
 	
 	public void run() {
-		
+		while (true) {
+			Scanner sc = new Scanner(System.in);
+			System.out.println("Running");
+			System.out.println("Enter 'exit' to go back");
+		}
 	}
 
 }

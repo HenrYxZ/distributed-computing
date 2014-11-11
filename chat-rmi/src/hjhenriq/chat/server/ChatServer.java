@@ -8,12 +8,11 @@ import hjhenriq.chat.client.ChatClientIF;
 
 public class ChatServer extends UnicastRemoteObject implements ChatServerIF {
 
-
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
-	private HashMap<String, ChatClientIF> clientsNames; 
+	private HashMap<String, ChatClientIF> clientsNames;
 	private HashMap<String, String> namesPass;
 
 	protected ChatServer() throws RemoteException {
@@ -22,26 +21,66 @@ public class ChatServer extends UnicastRemoteObject implements ChatServerIF {
 		namesPass = new HashMap<String, String>();
 	}
 
-	public void authenticate(ChatClientIF chatClient, String name, String pass) {
+	@Override
+	public void authenticate(ChatClientIF chatClient, String name, String pass)
+			throws RemoteException {
 		if (namesPass.get(name).equals(pass)) {
 			clientsNames.put(name, chatClient);
 			chatClient.retrieveAuthentication(true);
+			printAuth(name, pass, true);
+		} else {
+			chatClient.retrieveAuthentication(false);
+			printAuth(name, pass, false);
 		}
-		else chatClient.retrieveAuthentication(false);
-			
 	}
 
 	@Override
 	public boolean register(ChatClientIF chatClient, String name) {
-		if (namesPass.containsKey(name))
+		if (namesPass.containsKey(name)) {
+			printReg(name, false);
 			return false;
-		else
+		} else {
+			printReg(name, true);
 			return true;
+		}
 	}
 
-	public void register(ChatClientIF chatClient, String name, String pass) {
-		namesPass.put(name, pass);
-		clientsNames.put(name, chatClient);
+	@Override
+	public void register(ChatClientIF chatClient, String name, String pass)
+			throws RemoteException {
+		if (namesPass.containsKey(name)) {
+			chatClient.retrieveRegistration(false);
+			printReg(name, pass, false);
+		} else {
+			namesPass.put(name, pass);
+			clientsNames.put(name, chatClient);
+			chatClient.retrieveRegistration(true);
+			printReg(name, pass, true);
+		}
+	}
+
+	// ----------------- Functions for Printing Output ---------------------
+	private void printAuth(String name, String pass, boolean success) {
+		if (success)
+			System.out.println("(" + name + ", " + pass + ") authenticated.");
+		else
+			System.out.println("Authentication failed, (" + name + ", " + pass
+					+ ").");
+	}
+
+	private void printReg(String name, boolean success) {
+		if (success)
+			System.out.println("Name " + name + " selected.");
+		else
+			System.out.println("Name " + name + " already used.");
+	}
+
+	private void printReg(String name, String pass, boolean success) {
+		if (success)
+			System.out.println("(" + name + ", " + pass + ") registered.");
+		else
+			System.out.println("Authentication failed, (" + name + ", " + pass
+					+ ").");
 	}
 
 }
