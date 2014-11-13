@@ -84,18 +84,16 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 	}
 	
 	public void run() {
-		Scanner sc;
-		sc = new Scanner(System.in);
 		boolean running = true;
 		System.out.println("Running");
 		String menu = "Enter: \n" + "[0] to go back\n"
 				+ "[1] to add a new contact\n" + "[2] to remove a contact\n"
-				+ "[3] to list contacts\n" + "[4] to create a conversation";
+				+ "[3] to list contacts\n" + "[4] to create a conversation\n";
 		
 		while (running) {
-			System.out.println(menu);
-			if (sc.hasNextInt()) {
-				switch (sc.nextInt()) {
+			try {
+				int option = Integer.parseInt(mConsole.readLine(menu));
+				switch (option) {
 				case 1:
 					addContact();
 					break;
@@ -109,13 +107,13 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 					createConversation();
 					break;
 				default:
-					sc.close();
 					running = false;
 					break;
 				}
+			} catch (Exception e) {
+				e.printStackTrace();
 			}
 		}
-		
 	}
 
 	// ---------------- Interface Methods:              -------------------------
@@ -165,15 +163,13 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 	}
 
 	private void createConversation() {
-		Conversation conv = new Conversation();
+		mCurrentConversation = new Conversation();
 		printConversationMenu();
-		Scanner sc = new Scanner(System.in);
-		while (sc.hasNextLine()) {
-			String line = sc.nextLine();
+		while (true) {
+			String line = mConsole.readLine();
 			if (line.equalsIgnoreCase("exit"))
 				break;
 		}
-		sc.close();
 	}
 
 	// ------------------------ Methods for Printing -----------------------------

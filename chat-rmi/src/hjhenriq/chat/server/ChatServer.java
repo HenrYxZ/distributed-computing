@@ -24,7 +24,7 @@ public class ChatServer extends UnicastRemoteObject implements ChatServerIF {
 	@Override
 	public synchronized void authenticate(ChatClientIF chatClient, String name,
 			String pass) throws RemoteException {
-		if (namesPass.get(name).equals(pass)) {
+		if (namesPass.containsKey(name) && namesPass.get(name).equals(pass)) {
 			clientsNames.put(name, chatClient);
 			chatClient.retrieveAuthentication(true);
 			printAuthenticated(name, pass, true);
