@@ -22,31 +22,31 @@ public class ChatServer extends UnicastRemoteObject implements ChatServerIF {
 	}
 
 	@Override
-	public void authenticate(ChatClientIF chatClient, String name, String pass)
-			throws RemoteException {
+	public synchronized void authenticate(ChatClientIF chatClient, String name,
+			String pass) throws RemoteException {
 		if (namesPass.get(name).equals(pass)) {
 			clientsNames.put(name, chatClient);
 			chatClient.retrieveAuthentication(true);
-			printAuth(name, pass, true);
+			printAuthenticated(name, pass, true);
 		} else {
 			chatClient.retrieveAuthentication(false);
-			printAuth(name, pass, false);
+			printAuthenticated(name, pass, false);
 		}
 	}
 
 	@Override
-	public boolean register(ChatClientIF chatClient, String name) {
+	public synchronized boolean register(ChatClientIF chatClient, String name) {
 		if (namesPass.containsKey(name)) {
-			printReg(name, false);
+			printRegistered(name, false);
 			return false;
 		} else {
-			printReg(name, true);
+			printRegistered(name, true);
 			return true;
 		}
 	}
 
 	@Override
-	public void register(ChatClientIF chatClient, String name, String pass)
+	public synchronized void register(ChatClientIF chatClient, String name, String pass)
 			throws RemoteException {
 		if (namesPass.containsKey(name)) {
 			chatClient.retrieveRegistration(false);
@@ -60,7 +60,7 @@ public class ChatServer extends UnicastRemoteObject implements ChatServerIF {
 	}
 
 	// ----------------- Functions for Printing Output ---------------------
-	private void printAuth(String name, String pass, boolean success) {
+	private void printAuthenticated(String name, String pass, boolean success) {
 		if (success)
 			System.out.println("(" + name + ", " + pass + ") authenticated.");
 		else
@@ -68,7 +68,7 @@ public class ChatServer extends UnicastRemoteObject implements ChatServerIF {
 					+ ").");
 	}
 
-	private void printReg(String name, boolean success) {
+	private void printRegistered(String name, boolean success) {
 		if (success)
 			System.out.println("Name " + name + " selected.");
 		else

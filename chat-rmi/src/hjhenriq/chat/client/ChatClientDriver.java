@@ -14,9 +14,18 @@ public class ChatClientDriver {
 		ChatServerIF chatServer;
 		ChatClient chatClient;
 		try {
-			chatServer = (ChatServerIF)Naming.lookup(serverUrl);
+			chatServer = (ChatServerIF) Naming.lookup(serverUrl);
 			chatClient = new ChatClient(chatServer);
 			chatClient.enterToChat();
+			/*
+			 * Method run is only reachable if the client has been authenticated
+			 * by the server. In run there are options to manage contacts and
+			 * start conversations. At any time inside this method (or any
+			 * child) it may be possible to be invited by another client to a
+			 * conversation.
+			 */
+			chatClient.run();
+			System.exit(0);
 		} catch (MalformedURLException e) {
 			System.out.println("Wrong URL...");
 			e.printStackTrace();

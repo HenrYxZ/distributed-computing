@@ -31,7 +31,8 @@ public class Contacts {
 		String s = "";
 		Iterator<Person> it;
 		Person current = null;
-		for(it = this.people.iterator(); it.hasNext(); current = it.next()) {
+		for(it = this.people.iterator(); it.hasNext();) {
+			current = it.next();
 			s += current.getName() + "\n";
 		}
 		return s;
