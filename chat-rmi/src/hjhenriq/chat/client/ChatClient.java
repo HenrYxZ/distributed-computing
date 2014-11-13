@@ -1,14 +1,13 @@
 package hjhenriq.chat.client;
 
-import hjhenriq.chat.model.Contacts;
 import hjhenriq.chat.model.Conversation;
 import hjhenriq.chat.model.Person;
+import hjhenriq.chat.model.User;
 import hjhenriq.chat.server.ChatServerIF;
 
 import java.io.Console;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
-import java.util.Scanner;
 
 public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 
@@ -17,8 +16,7 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 	 */
 	private static final long serialVersionUID = -8214387253929191454L;
 	private ChatServerIF mServer;
-	private String mName;
-	private Contacts mContacts;
+	private User mUser;
 	private Console mConsole;
 	private Conversation mCurrentConversation;
 	private boolean authenticated;
@@ -27,7 +25,7 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 		super();
 		this.mServer = chatServer;
 		this.mConsole = System.console();
-		this.mContacts = new Contacts();
+		this.mUser = null;
 		this.mCurrentConversation = null;
 		this.authenticated = false;
 	}
@@ -42,14 +40,12 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 				System.out.println("Name already used.");
 		}
 		String pass = mConsole.readLine("Enter new password: ");
-		this.mName = name;
 		this.mServer.register(this, name, pass);
 	}
 
 	public void authenticateNamePass() throws RemoteException {
 		String name = mConsole.readLine("Enter your name: ");
 		String pass = mConsole.readLine("Enter your password: ");
-		this.mName = name;
 		this.mServer.authenticate(this, name, pass);
 	}
 
@@ -62,6 +58,8 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 			try {
 				int option = Integer.parseInt(mConsole.readLine(menu));
 				switch (option) {
+				case 0:
+					System.exit(0);
 				case 1:
 					sendNewUser();
 					if (this.authenticated)
@@ -108,6 +106,7 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 					break;
 				default:
 					running = false;
+					this.mServer.updateUser(this.mUser.getName(), this.mUser);
 					break;
 				}
 			} catch (Exception e) {
@@ -119,10 +118,11 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 	// ---------------- Interface Methods:              -------------------------
 	//----------------------- Connection with server ----------------------------
 	@Override
-	public void retrieveAuthentication(boolean answer) {
-		if (answer == true) {
+	public void retrieveAuthentication(User answer) {
+		if (answer != null) {
 			this.authenticated = true;
-			System.out.println("Welcome back " + this.mName + "!");
+			this.mUser = answer;
+			System.out.println("Welcome back " + this.mUser.getName() + "!");
 		} else {
 			this.authenticated = false;
 			System.out.println("Wrong user or password, please try again.");
@@ -130,9 +130,10 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 	}
 
 	@Override
-	public void retrieveRegistration(boolean answer) {
-		if (answer == true) {
+	public void retrieveRegistration(User answer) {
+		if (answer != null) {
 			this.authenticated = true;
+			this.mUser = answer;
 			System.out.println("Successfully registered!");
 		} else {
 			this.authenticated = false;
@@ -147,7 +148,7 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 	private void addContact() {
 		printContactMenu("add");
 		String name = mConsole.readLine();
-		mContacts.add(new Person(name));
+		this.mUser.getContacts().add(new Person(name));
 	}
 	
 	
@@ -155,7 +156,7 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 	private void removeContact() {
 		printContactMenu("remove");
 		String name = mConsole.readLine();
-		mContacts.remove(name);
+		this.mUser.getContacts().remove(name);
 	}
 
 	private void listContacts() {
@@ -188,6 +189,6 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 			System.out.println("Write the name of the contact to be removed");
 		else
 			System.out.println("This are your contacts \n"
-					+ mContacts.toString());
+					+ this.mUser.getContacts().toString());
 	}
 }

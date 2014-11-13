@@ -1,8 +1,13 @@
 package hjhenriq.chat.model;
 
+import java.io.Serializable;
 import java.util.List;
 
-public class Message {
+public class Message implements Serializable{
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -8275425198222735927L;
 	private String text;
 	private String owner;
 	private List<Person> receivers;

@@ -1,9 +1,14 @@
 package hjhenriq.chat.model;
 
+import java.io.Serializable;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 
-public class Contacts {
+public class Contacts implements Serializable{
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 3497049052670075693L;
 	private LinkedHashSet<Person> people;
 
 	public Contacts() {
