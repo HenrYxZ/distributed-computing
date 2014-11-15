@@ -19,5 +19,7 @@ public interface ChatServerIF extends Remote{
 	
 	void updateUser(String name, User newUser) throws RemoteException;
 	
-	String connectedList(Contacts contactsList) throws RemoteException; 
+	String connectedList(Contacts contactsList) throws RemoteException;
+	
+	ChatClientIF getClient(String name) throws RemoteException;
 }

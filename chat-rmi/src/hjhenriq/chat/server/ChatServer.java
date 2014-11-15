@@ -75,6 +75,7 @@ public class ChatServer extends UnicastRemoteObject implements ChatServerIF {
 		// this method is called by the client when he is logging out
 		this.namesUsers.replace(name, newUser);
 		this.namesClients.remove(name);
+		printUserLeft(name);
 	}
 	
 	@Override
@@ -87,10 +88,18 @@ public class ChatServer extends UnicastRemoteObject implements ChatServerIF {
 			if(this.namesClients.containsKey(currentContact.getName()))
 				answer += currentContact.getName() + "\n";
 		}
+		printShowConnected();
 		if (answer.isEmpty())
 			return "There isn't any contact connected";
 		else
 			return "The contacts connected now are: \n" + answer;
+		
+	}
+	
+	@Override
+	public ChatClientIF getClient(String name) throws RemoteException {
+		printGetClient(name);
+		return this.namesClients.get(name);
 	}
 
 	// ----------------- Functions for Printing Output ---------------------
@@ -115,5 +124,17 @@ public class ChatServer extends UnicastRemoteObject implements ChatServerIF {
 		else
 			System.out.println("Authentication failed, (" + name + ", " + pass
 					+ ").");
+	}
+	
+	private void printUserLeft(String name) {
+		System.out.println("User " + name + " has logged out.");
+	}
+	
+	private void printShowConnected() {
+		System.out.println("Someone asked for the connected contacts list");
+	}
+	
+	private void printGetClient(String name) {
+		System.out.println("Someone asked for the client with name " + name);
 	}
 }
