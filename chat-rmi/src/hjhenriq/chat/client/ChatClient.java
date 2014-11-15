@@ -1,6 +1,7 @@
 package hjhenriq.chat.client;
 
 import hjhenriq.chat.model.Conversation;
+import hjhenriq.chat.model.Message;
 import hjhenriq.chat.model.Person;
 import hjhenriq.chat.model.User;
 import hjhenriq.chat.server.ChatServerIF;
@@ -86,7 +87,8 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 		System.out.println("Running");
 		String menu = "Enter: \n" + "[0] to go back\n"
 				+ "[1] to add a new contact\n" + "[2] to remove a contact\n"
-				+ "[3] to list contacts\n" + "[4] to create a conversation\n";
+				+ "[3] to show connected contacts\n" 
+				+ "[4] to list contacts\n" + "[5] to create a conversation\n";
 		
 		while (running) {
 			try {
@@ -99,9 +101,12 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 					removeContact();
 					break;
 				case 3:
-					listContacts();
+					showConnectedContacts();
 					break;
 				case 4:
+					listContacts();
+					break;
+				case 5:
 					createConversation();
 					break;
 				default:
@@ -140,8 +145,18 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 			System.out.println("Problems in registration. Please try again.");
 		}
 	}
-
 	
+	// ---------------- Interface Methods:              -------------------------
+	//-------------------------- Peer communication -----------------------------
+	
+	public void send(Message m) {
+		//TODO implementation
+	}
+
+	public void receive(Message m) {
+		mCurrentConversation.addMessage(m);
+		System.out.println(m.toString());
+	}
 
 	// ------------------ Methods for Running Menu -------------------------------
 	
@@ -162,6 +177,10 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 	private void listContacts() {
 		printContactMenu("list");
 	}
+	
+	private void showConnectedContacts() throws RemoteException{
+		System.out.println(this.mServer.connectedList(this.mUser.getContacts()));
+	}
 
 	private void createConversation() {
 		mCurrentConversation = new Conversation();
@@ -171,6 +190,15 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 			if (line.equalsIgnoreCase("exit"))
 				break;
 		}
+	}
+	
+	// -------------------- Methods inside a conversation ------------------------
+	private void addParticipant() {
+		//TODO implement
+	}
+	
+	private void removeParticipant() {
+		//TODO implement
 	}
 
 	// ------------------------ Methods for Printing -----------------------------

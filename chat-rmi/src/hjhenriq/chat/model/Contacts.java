@@ -11,6 +11,9 @@ public class Contacts implements Serializable{
 	private static final long serialVersionUID = 3497049052670075693L;
 	private LinkedHashSet<Person> people;
 
+	public LinkedHashSet<Person> getPeople() {
+		return people;
+	}
 	public Contacts() {
 		this.people = new LinkedHashSet<Person>();
 	}

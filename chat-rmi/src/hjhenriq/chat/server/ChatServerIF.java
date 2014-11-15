@@ -4,6 +4,7 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 
 import hjhenriq.chat.client.ChatClientIF;
+import hjhenriq.chat.model.Contacts;
 import hjhenriq.chat.model.User;
 
 public interface ChatServerIF extends Remote{
@@ -17,4 +18,6 @@ public interface ChatServerIF extends Remote{
 			throws RemoteException;
 	
 	void updateUser(String name, User newUser) throws RemoteException;
+	
+	String connectedList(Contacts contactsList) throws RemoteException; 
 }
