@@ -108,10 +108,12 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 				+ name + ".\nWrite yes to accept the invitation.\n";
 		String option = this.mConsole.readLine(prompt);
 		if (option.equals("yes")) {
-			if (this.mCoordinator != null) {
+			if (this.isCoordinator) {
+				this.isCoordinator = false;
+			}
+			else
 				// Tells the coordinator that is leaving the conversation
 				this.mCoordinator.leaveConversation(this.mUser.getName());
-			}
 			this.mCoordinator = c;
 			this.mCoordinator.receive(new Message("I'm connected", this.mUser
 					.getName()));
@@ -128,6 +130,7 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 	
 	@Override
 	public void enterConversation() throws RemoteException {
+		this.hasToReply = false;
 		printConversationMenu(this.isCoordinator);
 		runConversation();
 	}
@@ -199,7 +202,7 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 				+ "[3] to show connected contacts\n" + "[4] to list contacts\n"
 				+ "[5] to create a conversation\n";
 
-		while (running && !hasToReply) {
+		while (running && !this.hasToReply) {
 			try {
 				int option = Integer.parseInt(mConsole.readLine(menu));
 				switch (option) {
@@ -264,7 +267,8 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 
 	private void runConversation() throws RemoteException {
 		Scanner sc = new Scanner(System.in);
-		while (!hasToReply && sc.hasNextLine()) {
+		while (!this.hasToReply) {
+			//String line = this.mConsole.readLine("> ");
 			String line = sc.nextLine();
 			if (hasToReply)
 				break;
@@ -281,18 +285,19 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 				send(new Message(line, this.mUser.getName()));
 		}
 		sc.close();
+		this.mConsole = System.console();
 	}
 
 	/*
 	 * -------------------- Methods for a Conversation ------------------------
 	 */
 
-	private void addParticipant(String name) throws RemoteException {
+	private synchronized void addParticipant(String name) throws RemoteException {
 		ChatClientIF newParticipant = this.mServer.getClient(name);
 		if (newParticipant != null) {
 			boolean accepted = false;
 			if (this.isCoordinator)
-				accepted = newParticipant.replyInvitation(this,
+				accepted = newParticipant.replyInvitation((ChatClientIF)this,
 						this.mUser.getName());
 			else
 				accepted = newParticipant.replyInvitation(this.mCoordinator,
@@ -303,7 +308,7 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 				newParticipant.enterConversation();
 			} else {
 				System.out.println("The user " + name
-						+ "didn't accept the invitation");
+						+ " didn't accept the invitation");
 			}
 		} else {
 			System.out.println("That user is not connected right now.");
