@@ -27,7 +27,9 @@ public class Conversation {
 		Message currentMsg;
 		for (int i = 0; i < n; i++) {
 			currentMsg = this.messages.get(i);
-			s += currentMsg.toString();
+			// Don't show system messages
+			if (currentMsg.getFlag() < 2)
+				s += currentMsg.toString();
 		}
 		return s;
 	}

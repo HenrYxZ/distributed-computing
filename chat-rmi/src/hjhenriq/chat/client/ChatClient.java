@@ -19,15 +19,20 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 	 * 
 	 */
 	private static final long serialVersionUID = -8214387253929191454L;
+	private static final int NORMAL_MSG_FLAG = 0;
+	// private static final int ATTACHED_MSG_FLAG = 1;
+	private static final int REMOVED_MSG_FLAG = 2;
+	private static final int SYSTEM_MSG_FLAG = 3;
 	private ChatServerIF mServer;
 	private User mUser;
 	private Console mConsole;
 	private Conversation mCurrentConversation;
 	private boolean isAuthenticated;
 	private boolean isCoordinator;
+	private boolean goBackToMain;
 	private HashMap<String, ChatClientIF> mParticipants;
 	private ChatClientIF mCoordinator;
-	private boolean hasToReply;
+	private HashMap<String, ChatClientIF> mPendingInvitations;
 
 	protected ChatClient(ChatServerIF chatServer) throws RemoteException {
 		super();
@@ -39,7 +44,8 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 		this.isCoordinator = false;
 		this.mParticipants = null;
 		this.mCoordinator = null;
-		this.hasToReply = false;
+		this.mPendingInvitations = new HashMap<String, ChatClientIF>();
+		this.goBackToMain = false;
 	}
 
 	/*
@@ -79,21 +85,26 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 
 	@Override
 	public synchronized void receive(Message m) {
-		this.mCurrentConversation.addMessage(m);
-		if (m.getFlag() == 1) {
+		switch (m.getFlag()) {
+		case NORMAL_MSG_FLAG:
+			this.mCurrentConversation.addMessage(m);
+			break;
+		case REMOVED_MSG_FLAG:
 			this.mCoordinator = null;
 			this.mCurrentConversation = null;
+			this.goBackToMain = true;
+			break;
 		}
 		System.out.println(m.toString());
 	}
 
 	@Override
-	public synchronized void broadcast(Message m, ChatClientIF initiator)
+	public synchronized void broadcast(Message m, String initiator)
 			throws RemoteException {
 		Iterator<ChatClientIF> it;
 		for (it = this.mParticipants.values().iterator(); it.hasNext();) {
 			ChatClientIF c = it.next();
-			if (c != initiator)
+			if (!c.getName().equals(initiator))
 				c.receive(m);
 		}
 		System.out.println(m.toString());
@@ -101,38 +112,43 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 	}
 
 	@Override
-	public synchronized boolean replyInvitation(ChatClientIF c, String name)
+	public synchronized void recvInvitation(ChatClientIF c, String name)
 			throws RemoteException {
-		this.hasToReply = true;
 		String prompt = "You have been invited to a new conversation by "
-				+ name + ".\nWrite yes to accept the invitation.\n";
-		String option = this.mConsole.readLine(prompt);
-		if (option.equals("yes")) {
-			if (this.isCoordinator) {
-				this.isCoordinator = false;
-			}
-			else
-				// Tells the coordinator that is leaving the conversation
-				this.mCoordinator.leaveConversation(this.mUser.getName());
-			this.mCoordinator = c;
-			this.mCoordinator.receive(new Message("I'm connected", this.mUser
-					.getName()));
-			return true;
-		}
-
-		return false;
+				+ name + ".";
+		System.out.println(prompt);
+		this.mPendingInvitations.put(name, c);
 	}
 
 	@Override
-	public void leaveConversation(String name) throws RemoteException {
+	public synchronized void accepted(String name, ChatClientIF c)
+			throws RemoteException {
+		if (this.mCurrentConversation != null)
+			this.mParticipants.put(name, c);
+
+	}
+
+	@Override
+	public void leftConversation(String name) throws RemoteException {
+		String prompt = name + " has left the conversation.";
+		Message m = new Message(prompt, "Notice");
+		send(m);
 		this.mParticipants.remove(name);
 	}
 	
 	@Override
-	public void enterConversation() throws RemoteException {
-		this.hasToReply = false;
-		printConversationMenu(this.isCoordinator);
-		runConversation();
+	public void newCoordinator(HashMap<String, ChatClientIF> participants)
+			throws RemoteException {
+		this.isCoordinator = true;
+		this.mParticipants = participants;
+	}
+
+	@Override
+	public String getName() throws RemoteException {
+		if (this.isAuthenticated)
+			return this.mUser.getName();
+		else
+			return null;
 	}
 
 	/*
@@ -196,13 +212,15 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 
 	public void run() {
 		boolean running = true;
+		this.goBackToMain = false;
 		System.out.println("Running");
 		String menu = "Enter: \n" + "[0] to exit\n"
 				+ "[1] to add a new contact\n" + "[2] to remove a contact\n"
 				+ "[3] to show connected contacts\n" + "[4] to list contacts\n"
-				+ "[5] to create a conversation\n";
+				+ "[5] to create a conversation\n"
+				+ "[6] to list pending invitations to conversations\n";
 
-		while (running && !this.hasToReply) {
+		while (running) {
 			try {
 				int option = Integer.parseInt(mConsole.readLine(menu));
 				switch (option) {
@@ -220,6 +238,9 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 					break;
 				case 5:
 					createConversation();
+					break;
+				case 6:
+					listPendingConversations();
 					break;
 				default:
 					running = false;
@@ -265,51 +286,93 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 		runConversation();
 	}
 
+	private void listPendingConversations() throws RemoteException {
+		printPendingConvsMenu();
+		int option = Integer.parseInt(this.mConsole.readLine());
+		int numInvitations = this.mPendingInvitations.size();
+		if (numInvitations * 2 < option || numInvitations == 0
+				|| (numInvitations == 1) && (option == 2))
+			return;
+		int index = option % 2;
+		boolean accept = (option % 2 == 0);
+		ChatClientIF c = (ChatClientIF) this.mPendingInvitations.values()
+				.toArray()[index];
+		this.mPendingInvitations.remove(c.getName());
+		if (accept)
+			accept(c);
+		else
+			decline(c);
+	}
+
+	private void accept(ChatClientIF c) throws RemoteException {
+		String s = " has accepted your invitation.";
+		Message m = new Message(this.getName() + s, "Notice");
+		m.setFlag(SYSTEM_MSG_FLAG);
+		c.receive(m);
+		c.accepted(this.mUser.getName(), (ChatClientIF) this);
+		this.mCoordinator = c;
+		this.mCurrentConversation = new Conversation();
+		this.goBackToMain = false;
+		printConversationMenu(this.isCoordinator);
+		runConversation();
+	}
+
+	private void decline(ChatClientIF c) throws RemoteException {
+		String s = " has declined your invitation.";
+		Message m = new Message(this.mUser.getName() + s, "Notice");
+		m.setFlag(SYSTEM_MSG_FLAG);
+		c.receive(m);
+	}
+
 	private void runConversation() throws RemoteException {
+		@SuppressWarnings("resource")
 		Scanner sc = new Scanner(System.in);
-		while (!this.hasToReply) {
-			//String line = this.mConsole.readLine("> ");
+		while (!this.goBackToMain && sc.hasNextLine()) {
+			// String line = this.mConsole.readLine("> ");
 			String line = sc.nextLine();
-			if (hasToReply)
+			if (line.equalsIgnoreCase("exit")) {
+				//TODO assign another coordinator
+				String prompt = this.getName() + " has left the conversation.";
+				Message m = new Message(prompt, "Notice");
+				if (this.isCoordinator) {
+					
+					if (!this.mParticipants.isEmpty()) {
+						this.send(m);
+						this.isCoordinator = false;
+						ChatClientIF newCoord = (ChatClientIF) 
+								this.mParticipants.values().toArray()[0];
+						newCoord.newCoordinator(this.mParticipants);
+					}
+				} else {
+					this.mCoordinator.leftConversation(this.getName());
+				}
+				this.goBackToMain = true;
 				break;
-			if (line.equalsIgnoreCase("exit"))
-				break;
+			}
 			if (line.equalsIgnoreCase("help"))
 				printConversationMenu(this.isCoordinator);
 			if (line.startsWith("add(") && line.endsWith(")"))
-				addParticipant(line.substring(4, line.length() - 1));
+				invite(line.substring(4, line.length() - 1));
 			else if (this.isCoordinator && line.startsWith("remove(")
 					&& line.endsWith(")"))
 				removeParticipant(line.substring(7, line.length() - 1));
 			else
 				send(new Message(line, this.mUser.getName()));
 		}
-		sc.close();
-		this.mConsole = System.console();
+		this.isCoordinator = false;
+		this.mCurrentConversation = null;
+		this.mParticipants = null;
 	}
 
 	/*
 	 * -------------------- Methods for a Conversation ------------------------
 	 */
 
-	private synchronized void addParticipant(String name) throws RemoteException {
+	private synchronized void invite(String name) throws RemoteException {
 		ChatClientIF newParticipant = this.mServer.getClient(name);
 		if (newParticipant != null) {
-			boolean accepted = false;
-			if (this.isCoordinator)
-				accepted = newParticipant.replyInvitation((ChatClientIF)this,
-						this.mUser.getName());
-			else
-				accepted = newParticipant.replyInvitation(this.mCoordinator,
-						this.mUser.getName());
-			if (accepted) {
-				this.mCurrentConversation.addParticipant(new Person(name));
-				this.mParticipants.put(name, newParticipant);
-				newParticipant.enterConversation();
-			} else {
-				System.out.println("The user " + name
-						+ " didn't accept the invitation");
-			}
+			newParticipant.recvInvitation((ChatClientIF) this,
+					this.mUser.getName());
 		} else {
 			System.out.println("That user is not connected right now.");
 		}
@@ -321,12 +384,16 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 			if (c == null)
 				return;
 			String prompt = "You have been removed from the conversation.";
-			Message m = new Message("Coordinator", prompt);
+			Message m = new Message(prompt, "Coordinator");
+			m.setFlag(REMOVED_MSG_FLAG);
 			c.receive(m);
+			this.mParticipants.remove(name);
 		}
 	}
 
 	private void send(Message m) throws RemoteException {
+		if(m.getFlag() == NORMAL_MSG_FLAG)
+			this.mCurrentConversation.addMessage(m);
 		if (this.isCoordinator) {
 			Iterator<ChatClientIF> it;
 			for (it = this.mParticipants.values().iterator(); it.hasNext();) {
@@ -334,13 +401,12 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 				c.receive(m);
 			}
 		} else {
-			this.mCoordinator.broadcast(m, this);
+			this.mCoordinator.broadcast(m, this.getName());
 		}
 	}
 
 	/*
-	 * ------------------------ Methods for Printing
-	 * -----------------------------
+	 * -------------------- Methods for Printing -------------------------
 	 */
 
 	private void printConversationMenu(boolean coordinator) {
@@ -348,7 +414,8 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 				+ "Enter help to see this message again \n"
 				+ "Enter add([name]) to add someone to the conversation \n";
 		if (coordinator)
-			menu += "Enter remove([name]) to remove someone from the conversation\n";
+			menu += "Enter remove([name])"
+					+ "to remove someone from the conversation\n";
 		menu += "Or enter anything else to send it as a message.";
 		System.out.println(menu);
 	}
@@ -361,6 +428,26 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 		else
 			System.out.println("This are your contacts \n"
 					+ this.mUser.getContacts().toString());
+	}
+
+	private void printPendingConvsMenu() {
+		String menu = "Enter your option for the pending invitations: \n";
+		Iterator<String> it = this.mPendingInvitations.keySet().iterator();
+		int counter = 0;
+		for (; it.hasNext();) {
+
+			String name = it.next();
+			menu += name + "\n[" + counter + "] accept ";
+			counter++;
+			menu += "[" + counter + "] decline\n";
+			counter++;
+		}
+		if (counter > 2)
+			menu += "[" + counter + "] decline all\n";
+		counter++;
+		menu += "[" + counter + "] exit";
+		System.out.println(menu);
+
 	}
 
 }

@@ -17,8 +17,9 @@ public class Message implements Serializable{
 		/**
 		 * The flags are:
 		 *  0 for normal message,
-		 *  1 for message saying the client has been removed from a conversation
-		 *  2 for message with a file
+		 *  1 for message with a file
+		 *  2 for message saying the client has been removed from a conversation
+		 *  3 for system messages
 		 */
 		return flag;
 	}
