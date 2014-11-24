@@ -11,6 +11,7 @@ import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Scanner;
 
 public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
@@ -101,6 +102,7 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 	@Override
 	public synchronized void broadcast(Message m, String initiator)
 			throws RemoteException {
+		this.mCurrentConversation.addMessage(m);
 		Iterator<ChatClientIF> it;
 		for (it = this.mParticipants.values().iterator(); it.hasNext();) {
 			ChatClientIF c = it.next();
@@ -135,13 +137,18 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 		send(m);
 		this.mParticipants.remove(name);
 	}
-	
+
 	@Override
 	public void newCoordinator(HashMap<String, ChatClientIF> participants)
 			throws RemoteException {
 		this.isCoordinator = true;
 		this.mParticipants = participants;
 	}
+
+	@Override
+	public void newCoordinator(ChatClientIF coord) throws RemoteException {
+		this.mCoordinator = coord;
+	};
 
 	@Override
 	public String getName() throws RemoteException {
@@ -331,32 +338,22 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 			// String line = this.mConsole.readLine("> ");
 			String line = sc.nextLine();
 			if (line.equalsIgnoreCase("exit")) {
-				//TODO assign another coordinator
-				String prompt = this.getName() + " has left the conversation.";
-				Message m = new Message(prompt, "Notice");
-				if (this.isCoordinator) {
-					
-					if (!this.mParticipants.isEmpty()) {
-						this.send(m);
-						this.isCoordinator = false;
-						ChatClientIF newCoord = (ChatClientIF) 
-								this.mParticipants.values().toArray()[0];
-						newCoord.newCoordinator(this.mParticipants);
-					}
-				} else {
-					this.mCoordinator.leftConversation(this.getName());
-				}
+				assignNewCoordinator();
 				this.goBackToMain = true;
 				break;
 			}
 			if (line.equalsIgnoreCase("help"))
 				printConversationMenu(this.isCoordinator);
-			if (line.startsWith("add(") && line.endsWith(")"))
+			else if (line.startsWith("add(") && line.endsWith(")"))
 				invite(line.substring(4, line.length() - 1));
 			else if (this.isCoordinator && line.startsWith("remove(")
 					&& line.endsWith(")"))
 				removeParticipant(line.substring(7, line.length() - 1));
-			else
+			else if (line.startsWith("list -n ")) {
+				int n = Integer.parseInt(line.split(" ")[2]);
+				String s = this.mCurrentConversation.listMessages(n);
+				System.out.println(s);
+			} else
 				send(new Message(line, this.mUser.getName()));
 		}
 		this.isCoordinator = false;
@@ -367,6 +364,36 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 	/*
 	 * -------------------- Methods for a Conversation ------------------------
 	 */
+
+	private synchronized void assignNewCoordinator() throws RemoteException {
+		if (this.isCoordinator) {
+			String prompt = this.getName() + " has left the conversation.";
+			Message m = new Message(prompt, "Notice");
+			if (!this.mParticipants.isEmpty()) {
+				this.send(m);
+				this.isCoordinator = false;
+				int counter = 0;
+				ChatClientIF newCoord = null;
+				String newCoordName = null;
+				for (Map.Entry<String, ChatClientIF> entry : 
+					this.mParticipants.entrySet()) {
+					String key = entry.getKey();
+					ChatClientIF value = entry.getValue();
+					if (counter == 0) {
+						newCoord = value;
+						newCoordName = key;
+						counter++;
+					} else {
+						value.newCoordinator(newCoord);
+					}
+				}	
+				this.mParticipants.remove(newCoordName);
+				newCoord.newCoordinator(this.mParticipants);			
+			}
+		} else {
+			this.mCoordinator.leftConversation(this.getName());
+		}
+	}
 
 	private synchronized void invite(String name) throws RemoteException {
 		ChatClientIF newParticipant = this.mServer.getClient(name);
@@ -392,7 +419,7 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 	}
 
 	private void send(Message m) throws RemoteException {
-		if(m.getFlag() == NORMAL_MSG_FLAG)
+		if (m.getFlag() == NORMAL_MSG_FLAG)
 			this.mCurrentConversation.addMessage(m);
 		if (this.isCoordinator) {
 			Iterator<ChatClientIF> it;
@@ -416,6 +443,8 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 		if (coordinator)
 			menu += "Enter remove([name])"
 					+ "to remove someone from the conversation\n";
+		menu += "Enter list -n [number of messages] to list last n messages \n";
+		
 		menu += "Or enter anything else to send it as a message.";
 		System.out.println(menu);
 	}

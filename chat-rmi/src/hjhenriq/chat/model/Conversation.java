@@ -25,11 +25,12 @@ public class Conversation {
 	public String listMessages(int n) {
 		String s = "";
 		Message currentMsg;
-		for (int i = 0; i < n; i++) {
-			currentMsg = this.messages.get(i);
+		for (int i = 0; (i < n) && (i < this.messages.size()); i++) {
+			int pos = this.messages.size() - 1 - i;
+			currentMsg = this.messages.get(pos);
 			// Don't show system messages
 			if (currentMsg.getFlag() < 2)
-				s += currentMsg.toString();
+				s += currentMsg.toString() + "\n";
 		}
 		return s;
 	}

@@ -17,6 +17,7 @@ public interface ChatClientIF extends Remote{
 	void leftConversation(String name) throws RemoteException;
 	void newCoordinator(HashMap<String, ChatClientIF> participants)
 			throws RemoteException;
+	void newCoordinator(ChatClientIF coord) throws RemoteException;
 	String getName() throws RemoteException;
 	
 }
