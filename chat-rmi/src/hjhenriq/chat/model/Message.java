@@ -4,23 +4,26 @@ import java.io.Serializable;
 import java.util.List;
 
 public class Message implements Serializable{
-	/**
-	 * 
-	 */
+
 	private static final long serialVersionUID = -8275425198222735927L;
 	private String text;
 	private String owner;
 	private List<Person> receivers;
 	private int flag;
-
+	
+	public String getText() {
+		return text;
+	}
+		
+	/**
+	 * The flags are:
+	 *  0 for normal message,
+	 *  1 for message with a file,
+	 *  2 for message saying the client has been removed from a conversation,
+	 *  3 for system messages
+	 */
 	public int getFlag() {
-		/**
-		 * The flags are:
-		 *  0 for normal message,
-		 *  1 for message with a file
-		 *  2 for message saying the client has been removed from a conversation
-		 *  3 for system messages
-		 */
+		
 		return flag;
 	}
 

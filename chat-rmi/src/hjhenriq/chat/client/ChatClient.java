@@ -7,6 +7,13 @@ import hjhenriq.chat.model.User;
 import hjhenriq.chat.server.ChatServerIF;
 
 import java.io.Console;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.HashMap;
@@ -21,7 +28,7 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 	 */
 	private static final long serialVersionUID = -8214387253929191454L;
 	private static final int NORMAL_MSG_FLAG = 0;
-	// private static final int ATTACHED_MSG_FLAG = 1;
+	private static final int ATTACHED_MSG_FLAG = 1;
 	private static final int REMOVED_MSG_FLAG = 2;
 	private static final int SYSTEM_MSG_FLAG = 3;
 	private ChatServerIF mServer;
@@ -34,6 +41,7 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 	private HashMap<String, ChatClientIF> mParticipants;
 	private ChatClientIF mCoordinator;
 	private HashMap<String, ChatClientIF> mPendingInvitations;
+	private int filesCounter;
 
 	protected ChatClient(ChatServerIF chatServer) throws RemoteException {
 		super();
@@ -90,13 +98,23 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 		case NORMAL_MSG_FLAG:
 			this.mCurrentConversation.addMessage(m);
 			break;
+		case ATTACHED_MSG_FLAG:
+			try {
+				recvFile(m.getText());
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
+			}
 		case REMOVED_MSG_FLAG:
 			this.mCoordinator = null;
 			this.mCurrentConversation = null;
 			this.goBackToMain = true;
 			break;
 		}
-		System.out.println(m.toString());
+		if (m.getFlag() == ATTACHED_MSG_FLAG) {
+			System.out.println("");
+		} else {
+			System.out.println(m.toString());
+		}
 	}
 
 	@Override
@@ -285,7 +303,7 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 		System.out.println(prompt);
 	}
 
-	private void createConversation() throws RemoteException {
+	private void createConversation() throws IOException {
 		this.mCurrentConversation = new Conversation();
 		this.isCoordinator = true;
 		this.mParticipants = new HashMap<String, ChatClientIF>();
@@ -293,7 +311,7 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 		runConversation();
 	}
 
-	private void listPendingConversations() throws RemoteException {
+	private void listPendingConversations() throws IOException {
 		printPendingConvsMenu();
 		int option = Integer.parseInt(this.mConsole.readLine());
 		int numInvitations = this.mPendingInvitations.size();
@@ -311,7 +329,7 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 			decline(c);
 	}
 
-	private void accept(ChatClientIF c) throws RemoteException {
+	private void accept(ChatClientIF c) throws IOException {
 		String s = " has accepted your invitation.";
 		Message m = new Message(this.getName() + s, "Notice");
 		m.setFlag(SYSTEM_MSG_FLAG);
@@ -331,7 +349,7 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 		c.receive(m);
 	}
 
-	private void runConversation() throws RemoteException {
+	private void runConversation() throws IOException {
 		@SuppressWarnings("resource")
 		Scanner sc = new Scanner(System.in);
 		while (!this.goBackToMain && sc.hasNextLine()) {
@@ -353,7 +371,9 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 				int n = Integer.parseInt(line.split(" ")[2]);
 				String s = this.mCurrentConversation.listMessages(n);
 				System.out.println(s);
-			} else
+			} else if (line.startsWith("attach("))
+				attach(line.substring(7, line.length() - 1));
+			else
 				send(new Message(line, this.mUser.getName()));
 		}
 		this.isCoordinator = false;
@@ -417,6 +437,13 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 			this.mParticipants.remove(name);
 		}
 	}
+	
+	private void attach(String filename) throws IOException {
+		String text = readFile(filename, Charset.defaultCharset());
+		Message m = new Message(text, this.getName());
+		m.setFlag(ATTACHED_MSG_FLAG);
+		send(m);
+	}
 
 	private void send(Message m) throws RemoteException {
 		if (m.getFlag() == NORMAL_MSG_FLAG)
@@ -444,7 +471,7 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 			menu += "Enter remove([name])"
 					+ "to remove someone from the conversation\n";
 		menu += "Enter list -n [number of messages] to list last n messages \n";
-		
+		menu += "Enter attach([filename]) to attach a text file";
 		menu += "Or enter anything else to send it as a message.";
 		System.out.println(menu);
 	}
@@ -478,5 +505,21 @@ public class ChatClient extends UnicastRemoteObject implements ChatClientIF {
 		System.out.println(menu);
 
 	}
-
+	
+	// -----------------------  Utilities  --------------------------------------
+	private String readFile(String path, Charset encoding) throws IOException 
+	{
+		byte[] encoded = Files.readAllBytes(Paths.get(path));
+		return new String(encoded, encoding);
+	}
+	
+	private synchronized void recvFile(String text) throws FileNotFoundException {
+		String filename = this.filesCounter + ".txt";
+		String s = "You have received a new file, it has been downloaded as "
+				+ filename;
+		System.out.println(s);
+		PrintWriter pw = new PrintWriter(filename);
+		pw.print(text);
+		pw.close();
+	}
 }
